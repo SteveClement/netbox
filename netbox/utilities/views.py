@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from django_tables2 import RequestConfig
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -101,7 +102,13 @@ class ObjectListView(View):
         table = self.table(self.queryset)
         if 'pk' in table.base_columns and (permissions['change'] or permissions['delete']):
             table.base_columns['pk'].visible = True
-        RequestConfig(request, paginate={'klass': EnhancedPaginator}).configure(table)
+
+        # Apply the request context
+        paginate = {
+            'klass': EnhancedPaginator,
+            'per_page': request.GET.get('per_page', settings.PAGINATE_COUNT)
+        }
+        RequestConfig(request, paginate).configure(table)
 
         context = {
             'table': table,
@@ -145,9 +152,9 @@ class ObjectEditView(View):
             return get_object_or_404(self.model, pk=kwargs['pk'])
         return self.model()
 
-    def alter_obj(self, obj, args, kwargs):
+    def alter_obj(self, obj, request, url_args, url_kwargs):
         # Allow views to add extra info to an object before it is processed. For example, a parent object can be defined
-        # given some parameter from the request URI.
+        # given some parameter from the request URL.
         return obj
 
     def get_return_url(self, obj):
@@ -159,7 +166,7 @@ class ObjectEditView(View):
     def get(self, request, *args, **kwargs):
 
         obj = self.get_object(kwargs)
-        obj = self.alter_obj(obj, args, kwargs)
+        obj = self.alter_obj(obj, request, args, kwargs)
         initial_data = {k: request.GET[k] for k in self.fields_initial if k in request.GET}
         form = self.form_class(instance=obj, initial=initial_data)
 
@@ -173,7 +180,7 @@ class ObjectEditView(View):
     def post(self, request, *args, **kwargs):
 
         obj = self.get_object(kwargs)
-        obj = self.alter_obj(obj, args, kwargs)
+        obj = self.alter_obj(obj, request, args, kwargs)
         form = self.form_class(request.POST, instance=obj)
 
         if form.is_valid():
@@ -307,11 +314,12 @@ class BulkAddView(View):
         if form.is_valid():
 
             # The first field will be used as the pattern
-            pattern_field = form.fields.keys()[0]
+            field_names = list(form.fields.keys())
+            pattern_field = field_names[0]
             pattern = form.cleaned_data[pattern_field]
 
             # All other fields will be copied as object attributes
-            kwargs = {k: form.cleaned_data[k] for k in form.fields.keys()[1:]}
+            kwargs = {k: form.cleaned_data[k] for k in field_names[1:]}
 
             new_objs = []
             try:
@@ -326,7 +334,9 @@ class BulkAddView(View):
                 form.add_error(None, e)
 
             if not form.errors:
-                messages.success(request, u"Added {} {}.".format(len(new_objs), self.model._meta.verbose_name_plural))
+                msg = u"Added {} {}".format(len(new_objs), self.model._meta.verbose_name_plural)
+                messages.success(request, msg)
+                UserAction.objects.log_bulk_create(request.user, ContentType.objects.get_for_model(self.model), msg)
                 if '_addanother' in request.POST:
                     return redirect(request.path)
                 return redirect(self.default_return_url)
@@ -433,7 +443,7 @@ class BulkEditView(View):
 
         # Are we editing *all* objects in the queryset or just a selected subset?
         if request.POST.get('_all') and self.filter is not None:
-            pk_list = [obj.pk for obj in self.filter(request.GET, self.cls.objects.only('pk'))]
+            pk_list = [obj.pk for obj in self.filter(request.GET, self.cls.objects.only('pk')).qs]
         else:
             pk_list = [int(pk) for pk in request.POST.getlist('pk')]
 
@@ -470,7 +480,9 @@ class BulkEditView(View):
                 return redirect(return_url)
 
         else:
-            form = self.form(self.cls, initial={'pk': pk_list})
+            initial_data = request.POST.copy()
+            initial_data['pk'] = pk_list
+            form = self.form(self.cls, initial=initial_data)
 
         selected_objects = self.cls.objects.filter(pk__in=pk_list)
         if not selected_objects:
@@ -569,7 +581,7 @@ class BulkDeleteView(View):
 
         # Are we deleting *all* objects in the queryset or just a selected subset?
         if request.POST.get('_all') and self.filter is not None:
-            pk_list = [obj.pk for obj in self.filter(request.GET, self.cls.objects.only('pk'))]
+            pk_list = [obj.pk for obj in self.filter(request.GET, self.cls.objects.only('pk')).qs]
         else:
             pk_list = [int(pk) for pk in request.POST.getlist('pk')]
 

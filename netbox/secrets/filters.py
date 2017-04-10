@@ -4,11 +4,13 @@ from django.db.models import Q
 
 from .models import Secret, SecretRole
 from dcim.models import Device
+from utilities.filters import NumericInFilter
 
 
 class SecretFilter(django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
     role_id = django_filters.ModelMultipleChoiceFilter(
@@ -33,7 +35,9 @@ class SecretFilter(django_filters.FilterSet):
         model = Secret
         fields = ['name']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         return queryset.filter(
             Q(name__icontains=value) |
             Q(device__name__icontains=value)

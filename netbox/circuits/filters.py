@@ -5,14 +5,15 @@ from django.db.models import Q
 from dcim.models import Site
 from extras.filters import CustomFieldFilterSet
 from tenancy.models import Tenant
-from utilities.filters import NullableModelMultipleChoiceFilter
+from utilities.filters import NullableModelMultipleChoiceFilter, NumericInFilter
 
 from .models import Provider, Circuit, CircuitType
 
 
 class ProviderFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
     site_id = django_filters.ModelMultipleChoiceFilter(
@@ -31,7 +32,9 @@ class ProviderFilter(CustomFieldFilterSet, django_filters.FilterSet):
         model = Provider
         fields = ['name', 'account', 'asn']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         return queryset.filter(
             Q(name__icontains=value) |
             Q(account__icontains=value) |
@@ -40,8 +43,9 @@ class ProviderFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
 
 class CircuitFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
     provider_id = django_filters.ModelMultipleChoiceFilter(
@@ -93,7 +97,9 @@ class CircuitFilter(CustomFieldFilterSet, django_filters.FilterSet):
         model = Circuit
         fields = ['install_date']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         return queryset.filter(
             Q(cid__icontains=value) |
             Q(terminations__xconnect_id__icontains=value) |

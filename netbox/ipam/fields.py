@@ -6,7 +6,7 @@ from django.db import models
 from .formfields import IPFormField
 from .lookups import (
     EndsWith, IEndsWith, IRegex, IStartsWith, NetContained, NetContainedOrEqual, NetContains, NetContainsOrEquals,
-    NetHost, Regex, StartsWith,
+    NetHost, NetHostContained, NetMaskLength, Regex, StartsWith,
 )
 
 
@@ -66,7 +66,7 @@ IPNetworkField.register_lookup(NetContained)
 IPNetworkField.register_lookup(NetContainedOrEqual)
 IPNetworkField.register_lookup(NetContains)
 IPNetworkField.register_lookup(NetContainsOrEquals)
-IPNetworkField.register_lookup(NetHost)
+IPNetworkField.register_lookup(NetMaskLength)
 
 
 class IPAddressField(BaseIPField):
@@ -90,3 +90,5 @@ IPAddressField.register_lookup(NetContainedOrEqual)
 IPAddressField.register_lookup(NetContains)
 IPAddressField.register_lookup(NetContainsOrEquals)
 IPAddressField.register_lookup(NetHost)
+IPAddressField.register_lookup(NetHostContained)
+IPAddressField.register_lookup(NetMaskLength)

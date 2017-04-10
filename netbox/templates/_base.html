@@ -28,13 +28,18 @@
             <div id="navbar" class="navbar-collapse collapse">
                 {% if request.user.is_authenticated or not settings.LOGIN_REQUIRED %}
                 <ul class="nav navbar-nav">
-                    <li class="dropdown{% if request.path|startswith:'/dcim/sites/' or 'tenancy' in request.path %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/dcim/sites/,/dcim/regions/,/tenancy/' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Organization <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'dcim:site_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Sites</a></li>
                             {% if perms.dcim.add_site %}
                                 <li><a href="{% url 'dcim:site_add' %}"><i class="fa fa-plus" aria-hidden="true"></i> Add a Site</a></li>
                                 <li><a href="{% url 'dcim:site_import' %}"><i class="fa fa-download" aria-hidden="true"></i> Import Sites</a></li>
+                            {% endif %}
+                            <li class="divider"></li>
+                            <li><a href="{% url 'dcim:region_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Regions</a></li>
+                            {% if perms.dcim.add_region %}
+                                <li><a href="{% url 'dcim:region_add' %}"><i class="fa fa-plus" aria-hidden="true"></i> Add a Region</a></li>
                             {% endif %}
                             <li class="divider"></li>
                             <li><a href="{% url 'tenancy:tenant_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Tenants</a></li>
@@ -49,7 +54,7 @@
                             {% endif %}
                         </ul>
                     </li>
-                    <li class="dropdown{% if request.path|startswith:'/dcim/rack' %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/dcim/rack' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Racks <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'dcim:rack_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Racks</a></li>
@@ -67,9 +72,11 @@
                             {% if perms.dcim.add_rackrole %}
                                 <li><a href="{% url 'dcim:rackrole_add' %}"><i class="fa fa-plus" aria-hidden="true"></i> Add a Rack Role</a></li>
                             {% endif %}
+                            <li class="divider"></li>
+                            <li><a href="{% url 'dcim:rackreservation_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Rack Reservations</a></li>
                         </ul>
                     </li>
-                    <li class="dropdown{% if request.path|startswith:'/dcim/device' or request.path|startswith:'/dcim/manufacturers/' or request.path|startswith:'/dcim/platforms/' %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/dcim/device,/dcim/manufacturers/,/dcim/platforms/' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Devices <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'dcim:device_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Devices</a></li>
@@ -105,7 +112,7 @@
                             {% endif %}
                         </ul>
                     </li>
-                    <li class="dropdown{% if request.path|startswith:'/dcim/console-connections/' or request.path|startswith:'/dcim/power-connections/' or request.path|startswith:'/dcim/interface-connections/' %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/dcim/console-connections/,/dcim/power-connections/,/dcim/interface-connections/' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Connections <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'dcim:console_connections_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Console Connections</a></li>
@@ -128,7 +135,7 @@
                             {% endif %}
                         </ul>
                     </li>
-                    <li class="dropdown{% if request.path|startswith:'/ipam/' and not request.path|startswith:'/ipam/vlan' %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/ipam/' and not request.path|contains:'/ipam/vlan' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">IP Space <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'ipam:ipaddress_list' %}"><i class="fa fa-search" aria-hidden="true"></i> IP Addresses</a></li>
@@ -174,7 +181,7 @@
                             {% endif %}
                         </ul>
                     </li>
-                    <li class="dropdown{% if request.path|startswith:'/ipam/vlan' %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/ipam/vlan' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">VLANs <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'ipam:vlan_list' %}"><i class="fa fa-search" aria-hidden="true"></i> VLANs</a></li>
@@ -194,7 +201,7 @@
                             {% endif %}
                         </ul>
                     </li>
-                    <li class="dropdown{% if request.path|startswith:'/circuits/' %} active{% endif %}">
+                    <li class="dropdown{% if request.path|contains:'/circuits/' %} active{% endif %}">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Circuits <span class="caret"></span></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'circuits:provider_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Providers</a></li>
@@ -218,7 +225,7 @@
                         </ul>
                     </li>
                     {% if request.user.is_authenticated %}
-                        <li class="dropdown{% if request.path|startswith:'/secrets/' %} active{% endif %}">
+                        <li class="dropdown{% if request.path|contains:'/secrets/' %} active{% endif %}">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Secrets <span class="caret"></span></a>
                             <ul class="dropdown-menu">
                                 <li><a href="{% url 'secrets:secret_list' %}"><i class="fa fa-search" aria-hidden="true"></i> Secrets</a></li>
@@ -240,7 +247,7 @@
                         {% if request.user.is_staff %}
                             <li><a href="{% url 'admin:index' %}"><i class="fa fa-cogs" aria-hidden="true"></i> Admin</a></li>
                         {% endif %}
-                        <li><a href="{% url 'users:profile' %}"><i class="fa fa-user" aria-hidden="true"></i> Profile</a></li>
+                        <li><a href="{% url 'user:profile' %}"><i class="fa fa-user" aria-hidden="true"></i> {{ request.user }}</a></li>
                         <li><a href="{% url 'logout' %}"><i class="fa fa-sign-out" aria-hidden="true"></i> Log out</a></li>
                     {% else %}
                         <li><a href="{% url 'login' %}?next={{ request.path }}"><i class="fa fa-sign-in" aria-hidden="true"></i> Log in</a></li>
@@ -289,8 +296,9 @@
                 <div class="col-xs-4 text-right">
                     <p class="text-muted">
                         <i class="fa fa-fw fa-book text-primary"></i> <a href="http://netbox.readthedocs.io/" target="_blank">Docs</a> &middot;
-                        <i class="fa fa-fw fa-cloud text-primary"></i> <a href="{% url 'django.swagger.base.view' %}">API</a> &middot;
-                        <i class="fa fa-fw fa-code text-primary"></i> <a href="https://github.com/digitalocean/netbox">Code</a>
+                        <i class="fa fa-fw fa-cloud text-primary"></i> <a href="{% url 'api_docs' %}">API</a> &middot;
+                        <i class="fa fa-fw fa-code text-primary"></i> <a href="https://github.com/digitalocean/netbox">Code</a> &middot;
+                        <i class="fa fa-fw fa-support text-primary"></i> <a href="https://github.com/digitalocean/netbox/wiki">Help</a>
                     </p>
                 </div>
             </div>

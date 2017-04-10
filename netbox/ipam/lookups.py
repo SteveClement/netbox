@@ -1,4 +1,4 @@
-from django.db.models import Lookup
+from django.db.models import Lookup, Transform, IntegerField
 from django.db.models.lookups import BuiltinLookup
 
 
@@ -87,3 +87,26 @@ class NetHost(Lookup):
             rhs_params[0] = rhs_params[0].split('/')[0]
         params = lhs_params + rhs_params
         return 'HOST(%s) = %s' % (lhs, rhs), params
+
+
+class NetHostContained(Lookup):
+    """
+    Check for the host portion of an IP address without regard to its mask. This allows us to find e.g. 192.0.2.1/24
+    when specifying a parent prefix of 192.0.2.0/26.
+    """
+    lookup_name = 'net_host_contained'
+
+    def as_sql(self, qn, connection):
+        lhs, lhs_params = self.process_lhs(qn, connection)
+        rhs, rhs_params = self.process_rhs(qn, connection)
+        params = lhs_params + rhs_params
+        return 'CAST(HOST(%s) AS INET) << %s' % (lhs, rhs), params
+
+
+class NetMaskLength(Transform):
+    lookup_name = 'net_mask_length'
+    function = 'MASKLEN'
+
+    @property
+    def output_field(self):
+        return IntegerField()

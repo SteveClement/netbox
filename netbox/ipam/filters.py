@@ -7,20 +7,16 @@ from django.db.models import Q
 from dcim.models import Site, Device, Interface
 from extras.filters import CustomFieldFilterSet
 from tenancy.models import Tenant
-from utilities.filters import NullableModelMultipleChoiceFilter
+from utilities.filters import NullableModelMultipleChoiceFilter, NumericInFilter
 
 from .models import Aggregate, IPAddress, Prefix, RIR, Role, Service, VLAN, VLANGroup, VRF
 
 
 class VRFFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
-    )
-    name = django_filters.CharFilter(
-        name='name',
-        lookup_type='icontains',
-        label='Name',
     )
     tenant_id = NullableModelMultipleChoiceFilter(
         name='tenant',
@@ -34,7 +30,9 @@ class VRFFilter(CustomFieldFilterSet, django_filters.FilterSet):
         label='Tenant (slug)',
     )
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         return queryset.filter(
             Q(name__icontains=value) |
             Q(rd__icontains=value) |
@@ -43,10 +41,11 @@ class VRFFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
     class Meta:
         model = VRF
-        fields = ['rd']
+        fields = ['name', 'rd']
 
 
 class RIRFilter(django_filters.FilterSet):
+    id__in = NumericInFilter(name='id', lookup_expr='in')
 
     class Meta:
         model = RIR
@@ -54,8 +53,9 @@ class RIRFilter(django_filters.FilterSet):
 
 
 class AggregateFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
     rir_id = django_filters.ModelMultipleChoiceFilter(
@@ -74,7 +74,9 @@ class AggregateFilter(CustomFieldFilterSet, django_filters.FilterSet):
         model = Aggregate
         fields = ['family', 'date_added']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         qs_filter = Q(description__icontains=value)
         try:
             prefix = str(IPNetwork(value.strip()).cidr)
@@ -85,13 +87,18 @@ class AggregateFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
 
 class PrefixFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
-    parent = django_filters.MethodFilter(
-        action='search_by_parent',
+    parent = django_filters.CharFilter(
+        method='search_by_parent',
         label='Parent prefix',
+    )
+    mask_length = django_filters.NumberFilter(
+        method='filter_mask_length',
+        label='Mask length',
     )
     vrf_id = NullableModelMultipleChoiceFilter(
         name='vrf_id',
@@ -151,7 +158,9 @@ class PrefixFilter(CustomFieldFilterSet, django_filters.FilterSet):
         model = Prefix
         fields = ['family', 'status']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         qs_filter = Q(description__icontains=value)
         try:
             prefix = str(IPNetwork(value.strip()).cidr)
@@ -160,7 +169,7 @@ class PrefixFilter(CustomFieldFilterSet, django_filters.FilterSet):
             pass
         return queryset.filter(qs_filter)
 
-    def search_by_parent(self, queryset, value):
+    def search_by_parent(self, queryset, name, value):
         value = value.strip()
         if not value:
             return queryset
@@ -170,33 +179,25 @@ class PrefixFilter(CustomFieldFilterSet, django_filters.FilterSet):
         except AddrFormatError:
             return queryset.none()
 
-    def _tenant(self, queryset, value):
-        if str(value) == '':
+    def filter_mask_length(self, queryset, name, value):
+        if not value:
             return queryset
-        return queryset.filter(
-            Q(tenant__slug=value) |
-            Q(tenant__isnull=True, vrf__tenant__slug=value)
-        )
-
-    def _tenant_id(self, queryset, value):
-        try:
-            value = int(value)
-        except ValueError:
-            return queryset.none()
-        return queryset.filter(
-            Q(tenant__pk=value) |
-            Q(tenant__isnull=True, vrf__tenant__pk=value)
-        )
+        return queryset.filter(prefix__net_mask_length=value)
 
 
 class IPAddressFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
-    parent = django_filters.MethodFilter(
-        action='search_by_parent',
+    parent = django_filters.CharFilter(
+        method='search_by_parent',
         label='Parent prefix',
+    )
+    mask_length = django_filters.NumberFilter(
+        method='filter_mask_length',
+        label='Mask length',
     )
     vrf_id = NullableModelMultipleChoiceFilter(
         name='vrf_id',
@@ -239,9 +240,11 @@ class IPAddressFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
     class Meta:
         model = IPAddress
-        fields = ['q', 'family', 'status']
+        fields = ['family', 'status']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         qs_filter = Q(description__icontains=value)
         try:
             ipaddress = str(IPNetwork(value.strip()))
@@ -250,25 +253,30 @@ class IPAddressFilter(CustomFieldFilterSet, django_filters.FilterSet):
             pass
         return queryset.filter(qs_filter)
 
-    def search_by_parent(self, queryset, value):
+    def search_by_parent(self, queryset, name, value):
         value = value.strip()
         if not value:
             return queryset
         try:
-            query = str(IPNetwork(value).cidr)
-            return queryset.filter(address__net_contained_or_equal=query)
+            query = str(IPNetwork(value.strip()).cidr)
+            return queryset.filter(address__net_host_contained=query)
         except AddrFormatError:
             return queryset.none()
 
+    def filter_mask_length(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(address__net_mask_length=value)
+
 
 class VLANGroupFilter(django_filters.FilterSet):
-    site_id = django_filters.ModelMultipleChoiceFilter(
+    site_id = NullableModelMultipleChoiceFilter(
         name='site',
         queryset=Site.objects.all(),
         label='Site (ID)',
     )
-    site = django_filters.ModelMultipleChoiceFilter(
-        name='site__slug',
+    site = NullableModelMultipleChoiceFilter(
+        name='site',
         queryset=Site.objects.all(),
         to_field_name='slug',
         label='Site (slug)',
@@ -276,20 +284,22 @@ class VLANGroupFilter(django_filters.FilterSet):
 
     class Meta:
         model = VLANGroup
+        fields = ['name']
 
 
 class VLANFilter(CustomFieldFilterSet, django_filters.FilterSet):
-    q = django_filters.MethodFilter(
-        action='search',
+    id__in = NumericInFilter(name='id', lookup_expr='in')
+    q = django_filters.CharFilter(
+        method='search',
         label='Search',
     )
-    site_id = django_filters.ModelMultipleChoiceFilter(
+    site_id = NullableModelMultipleChoiceFilter(
         name='site',
         queryset=Site.objects.all(),
         label='Site (ID)',
     )
-    site = django_filters.ModelMultipleChoiceFilter(
-        name='site__slug',
+    site = NullableModelMultipleChoiceFilter(
+        name='site',
         queryset=Site.objects.all(),
         to_field_name='slug',
         label='Site (slug)',
@@ -304,15 +314,6 @@ class VLANFilter(CustomFieldFilterSet, django_filters.FilterSet):
         queryset=VLANGroup.objects.all(),
         to_field_name='slug',
         label='Group',
-    )
-    name = django_filters.CharFilter(
-        name='name',
-        lookup_type='icontains',
-        label='Name',
-    )
-    vid = django_filters.NumberFilter(
-        name='vid',
-        label='VLAN number (1-4095)',
     )
     tenant_id = NullableModelMultipleChoiceFilter(
         name='tenant',
@@ -339,12 +340,14 @@ class VLANFilter(CustomFieldFilterSet, django_filters.FilterSet):
 
     class Meta:
         model = VLAN
-        fields = ['status']
+        fields = ['name', 'vid', 'status']
 
-    def search(self, queryset, value):
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
         qs_filter = Q(name__icontains=value) | Q(description__icontains=value)
         try:
-            qs_filter |= Q(vid=int(value))
+            qs_filter |= Q(vid=int(value.strip()))
         except ValueError:
             pass
         return queryset.filter(qs_filter)

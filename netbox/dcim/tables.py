@@ -6,9 +6,27 @@ from utilities.tables import BaseTable, ToggleColumn
 from .models import (
     ConsolePort, ConsolePortTemplate, ConsoleServerPortTemplate, Device, DeviceBayTemplate, DeviceRole, DeviceType,
     Interface, InterfaceTemplate, Manufacturer, Platform, PowerOutletTemplate, PowerPort, PowerPortTemplate, Rack,
-    RackGroup, Site,
+    RackGroup, RackReservation, Region, Site,
 )
 
+
+REGION_LINK = """
+{% if record.get_children %}
+    <span style="padding-left: {{ record.get_ancestors|length }}0px "><i class="fa fa-caret-right"></i>
+{% else %}
+    <span style="padding-left: {{ record.get_ancestors|length }}9px">
+{% endif %}
+    <a href="{% url 'dcim:site_list' %}?region={{ record.slug }}">{{ record.name }}</a>
+</span>
+"""
+
+SITE_REGION_LINK = """
+{% if record.region %}
+    <a href="{% url 'dcim:site_list' %}?region={{ record.region.slug }}">{{ record.region }}</a>
+{% else %}
+    &mdash;
+{% endif %}
+"""
 
 COLOR_LABEL = """
 <label class="label" style="background-color: #{{ record.color }}">{{ record }}</label>
@@ -18,6 +36,12 @@ DEVICE_LINK = """
 <a href="{% url 'dcim:device' pk=record.pk %}">
     {{ record.name|default:'<span class="label label-info">Unnamed device</span>' }}
 </a>
+"""
+
+REGION_ACTIONS = """
+{% if perms.dcim.change_region %}
+    <a href="{% url 'dcim:region_edit' pk=record.pk %}" class="btn btn-xs btn-warning"><i class="glyphicon glyphicon-pencil" aria-hidden="true"></i></a>
+{% endif %}
 """
 
 RACKGROUP_ACTIONS = """
@@ -37,6 +61,12 @@ RACK_ROLE = """
     <label class="label" style="background-color: #{{ record.role.color }}">{{ value }}</label>
 {% else %}
     &mdash;
+{% endif %}
+"""
+
+RACKRESERVATION_ACTIONS = """
+{% if perms.dcim.change_rackreservation %}
+    <a href="{% url 'dcim:rackreservation_edit' pk=record.pk %}" class="btn btn-xs btn-warning"><i class="glyphicon glyphicon-pencil" aria-hidden="true"></i></a>
 {% endif %}
 """
 
@@ -70,10 +100,40 @@ STATUS_ICON = """
 {% endif %}
 """
 
+DEVICE_PRIMARY_IP = """
+{{ record.primary_ip6.address.ip|default:"" }}
+{% if record.primary_ip6 and record.primary_ip4 %}<br />{% endif %}
+{{ record.primary_ip4.address.ip|default:"" }}
+"""
+
+SUBDEVICE_ROLE_TEMPLATE = """
+{% if record.subdevice_role == True %}Parent{% elif record.subdevice_role == False %}Child{% else %}&mdash;{% endif %}
+"""
+
 UTILIZATION_GRAPH = """
 {% load helpers %}
 {% utilization_graph value %}
 """
+
+
+#
+# Regions
+#
+
+class RegionTable(BaseTable):
+    pk = ToggleColumn()
+    name = tables.TemplateColumn(template_code=REGION_LINK, orderable=False)
+    site_count = tables.Column(verbose_name='Sites')
+    slug = tables.Column(verbose_name='Slug')
+    actions = tables.TemplateColumn(
+        template_code=REGION_ACTIONS,
+        attrs={'td': {'class': 'text-right'}},
+        verbose_name=''
+    )
+
+    class Meta(BaseTable.Meta):
+        model = Region
+        fields = ('pk', 'name', 'site_count', 'slug', 'actions')
 
 
 #
@@ -84,6 +144,7 @@ class SiteTable(BaseTable):
     pk = ToggleColumn()
     name = tables.LinkColumn('dcim:site', args=[Accessor('slug')], verbose_name='Name')
     facility = tables.Column(verbose_name='Facility')
+    region = tables.TemplateColumn(template_code=SITE_REGION_LINK, verbose_name='Region')
     tenant = tables.LinkColumn('tenancy:tenant', args=[Accessor('tenant.slug')], verbose_name='Tenant')
     asn = tables.Column(verbose_name='ASN')
     rack_count = tables.Column(accessor=Accessor('count_racks'), orderable=False, verbose_name='Racks')
@@ -94,8 +155,10 @@ class SiteTable(BaseTable):
 
     class Meta(BaseTable.Meta):
         model = Site
-        fields = ('pk', 'name', 'facility', 'tenant', 'asn', 'rack_count', 'device_count', 'prefix_count',
-                  'vlan_count', 'circuit_count')
+        fields = (
+            'pk', 'name', 'facility', 'region', 'tenant', 'asn', 'rack_count', 'device_count', 'prefix_count',
+            'vlan_count', 'circuit_count',
+        )
 
 
 #
@@ -170,6 +233,23 @@ class RackImportTable(BaseTable):
 
 
 #
+# Rack reservations
+#
+
+class RackReservationTable(BaseTable):
+    pk = ToggleColumn()
+    rack = tables.LinkColumn('dcim:rack', args=[Accessor('rack.pk')])
+    unit_list = tables.Column(orderable=False, verbose_name='Units')
+    actions = tables.TemplateColumn(
+        template_code=RACKRESERVATION_ACTIONS, attrs={'td': {'class': 'text-right'}}, verbose_name=''
+    )
+
+    class Meta(BaseTable.Meta):
+        model = RackReservation
+        fields = ('pk', 'rack', 'unit_list', 'user', 'created', 'description', 'actions')
+
+
+#
 # Manufacturers
 #
 
@@ -196,11 +276,18 @@ class DeviceTypeTable(BaseTable):
     model = tables.LinkColumn('dcim:devicetype', args=[Accessor('pk')], verbose_name='Device Type')
     part_number = tables.Column(verbose_name='Part Number')
     is_full_depth = tables.BooleanColumn(verbose_name='Full Depth')
+    is_console_server = tables.BooleanColumn(verbose_name='CS')
+    is_pdu = tables.BooleanColumn(verbose_name='PDU')
+    is_network_device = tables.BooleanColumn(verbose_name='Net')
+    subdevice_role = tables.TemplateColumn(SUBDEVICE_ROLE_TEMPLATE, verbose_name='Subdevice Role')
     instance_count = tables.Column(verbose_name='Instances')
 
     class Meta(BaseTable.Meta):
         model = DeviceType
-        fields = ('pk', 'model', 'manufacturer', 'part_number', 'u_height', 'is_full_depth', 'instance_count')
+        fields = (
+            'pk', 'model', 'manufacturer', 'part_number', 'u_height', 'is_full_depth', 'is_console_server', 'is_pdu',
+            'is_network_device', 'subdevice_role', 'instance_count'
+        )
 
 
 #
@@ -311,14 +398,13 @@ class DeviceTable(BaseTable):
     status = tables.TemplateColumn(template_code=STATUS_ICON, verbose_name='')
     name = tables.TemplateColumn(template_code=DEVICE_LINK, verbose_name='Name')
     tenant = tables.LinkColumn('tenancy:tenant', args=[Accessor('tenant.slug')], verbose_name='Tenant')
-    site = tables.LinkColumn('dcim:site', accessor=Accessor('rack.site'), args=[Accessor('rack.site.slug')],
-                             verbose_name='Site')
+    site = tables.LinkColumn('dcim:site', args=[Accessor('site.slug')], verbose_name='Site')
     rack = tables.LinkColumn('dcim:rack', args=[Accessor('rack.pk')], verbose_name='Rack')
     device_role = tables.TemplateColumn(DEVICE_ROLE, verbose_name='Role')
     device_type = tables.LinkColumn('dcim:devicetype', args=[Accessor('device_type.pk')], verbose_name='Type',
                                     text=lambda record: record.device_type.full_name)
     primary_ip = tables.TemplateColumn(orderable=False, verbose_name='IP Address',
-                                       template_code="{{ record.primary_ip.address.ip }}")
+                                       template_code=DEVICE_PRIMARY_IP)
 
     class Meta(BaseTable.Meta):
         model = Device
@@ -328,8 +414,7 @@ class DeviceTable(BaseTable):
 class DeviceImportTable(BaseTable):
     name = tables.TemplateColumn(template_code=DEVICE_LINK, verbose_name='Name')
     tenant = tables.LinkColumn('tenancy:tenant', args=[Accessor('tenant.slug')], verbose_name='Tenant')
-    site = tables.LinkColumn('dcim:site', accessor=Accessor('rack.site'), args=[Accessor('rack.site.slug')],
-                             verbose_name='Site')
+    site = tables.LinkColumn('dcim:site', args=[Accessor('site.slug')], verbose_name='Site')
     rack = tables.LinkColumn('dcim:rack', args=[Accessor('rack.pk')], verbose_name='Rack')
     position = tables.Column(verbose_name='Position')
     device_role = tables.Column(verbose_name='Role')
