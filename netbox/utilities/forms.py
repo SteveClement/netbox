@@ -7,8 +7,9 @@ from mptt.forms import TreeNodeMultipleChoiceField
 
 from django import forms
 from django.conf import settings
-from django.core.validators import URLValidator
 from django.urls import reverse_lazy
+
+from .validators import EnhancedURLValidator
 
 
 COLOR_CHOICES = (
@@ -431,17 +432,11 @@ class FilterTreeNodeMultipleChoiceField(FilterChoiceFieldMixin, TreeNodeMultiple
 
 class LaxURLField(forms.URLField):
     """
-    Custom URLField which allows any valid URL scheme
+    Modifies Django's built-in URLField in two ways:
+      1) Allow any valid scheme per RFC 3986 section 3.1
+      2) Remove the requirement for fully-qualified domain names (e.g. http://myserver/ is valid)
     """
-
-    class AnyURLScheme(object):
-        # A fake URL list which "contains" all scheme names abiding by the syntax defined in RFC 3986 section 3.1
-        def __contains__(self, item):
-            if not item or not re.match('^[a-z][0-9a-z+\-.]*$', item.lower()):
-                return False
-            return True
-
-    default_validators = [URLValidator(schemes=AnyURLScheme())]
+    default_validators = [EnhancedURLValidator()]
 
 
 #
@@ -459,7 +454,7 @@ class BootstrapMixin(forms.BaseForm):
             if field.widget.__class__ not in exempt_widgets:
                 css = field.widget.attrs.get('class', '')
                 field.widget.attrs['class'] = ' '.join([css, 'form-control']).strip()
-            if field.required:
+            if field.required and not isinstance(field.widget, forms.FileInput):
                 field.widget.attrs['required'] = 'required'
             if 'placeholder' not in field.widget.attrs:
                 field.widget.attrs['placeholder'] = field.label
@@ -471,9 +466,6 @@ class ChainedFieldsMixin(forms.BaseForm):
     """
     def __init__(self, *args, **kwargs):
         super(ChainedFieldsMixin, self).__init__(*args, **kwargs)
-
-        # if self.is_bound:
-        #     assert False, self.data
 
         for field_name, field in self.fields.items():
 
@@ -492,6 +484,12 @@ class ChainedFieldsMixin(forms.BaseForm):
 
                 if filters_dict:
                     field.queryset = field.queryset.filter(**filters_dict)
+                elif not self.is_bound and getattr(self, 'instance', None) and hasattr(self.instance, field_name):
+                    obj = getattr(self.instance, field_name)
+                    if obj is not None:
+                        field.queryset = field.queryset.filter(pk=obj.pk)
+                    else:
+                        field.queryset = field.queryset.none()
                 elif not self.is_bound:
                     field.queryset = field.queryset.none()
 
@@ -507,7 +505,7 @@ class ConfirmationForm(BootstrapMixin, ReturnURLForm):
     """
     A generic confirmation form. The form is not valid unless the confirm field is checked.
     """
-    confirm = forms.BooleanField(required=True)
+    confirm = forms.BooleanField(required=True, widget=forms.HiddenInput(), initial=True)
 
 
 class BulkEditForm(forms.Form):

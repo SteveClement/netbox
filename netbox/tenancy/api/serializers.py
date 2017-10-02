@@ -4,13 +4,14 @@ from rest_framework import serializers
 
 from extras.api.customfields import CustomFieldModelSerializer
 from tenancy.models import Tenant, TenantGroup
+from utilities.api import ValidatedModelSerializer
 
 
 #
 # Tenant groups
 #
 
-class TenantGroupSerializer(serializers.ModelSerializer):
+class TenantGroupSerializer(ValidatedModelSerializer):
 
     class Meta:
         model = TenantGroup

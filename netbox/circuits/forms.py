@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django import forms
 from django.db.models import Count
 
-from dcim.models import Site, Device, Interface, Rack, VIRTUAL_IFACE_TYPES
+from dcim.models import Site, Device, Interface, Rack
 from extras.forms import CustomFieldForm, CustomFieldBulkEditForm, CustomFieldFilterForm
 from tenancy.forms import TenancyForm
 from tenancy.models import Tenant
@@ -170,6 +170,7 @@ class CircuitFilterForm(BootstrapMixin, CustomFieldFilterForm):
         queryset=Site.objects.annotate(filter_count=Count('circuit_terminations')),
         to_field_name='slug'
     )
+    commit_rate = forms.IntegerField(required=False, min_value=0, label='Commit rate (Kbps)')
 
 
 #
@@ -210,7 +211,7 @@ class CircuitTerminationForm(BootstrapMixin, ChainedFieldsMixin, forms.ModelForm
         )
     )
     interface = ChainedModelChoiceField(
-        queryset=Interface.objects.exclude(form_factor__in=VIRTUAL_IFACE_TYPES).select_related(
+        queryset=Interface.objects.connectable().select_related(
             'circuit_termination', 'connected_as_a', 'connected_as_b'
         ),
         chains=(
@@ -220,7 +221,7 @@ class CircuitTerminationForm(BootstrapMixin, ChainedFieldsMixin, forms.ModelForm
         label='Interface',
         widget=APISelect(
             api_url='/api/dcim/interfaces/?device_id={{device}}&type=physical',
-            disabled_indicator='connection'
+            disabled_indicator='is_connected'
         )
     )
 
@@ -244,7 +245,7 @@ class CircuitTerminationForm(BootstrapMixin, ChainedFieldsMixin, forms.ModelForm
         # Initialize helper selectors
         instance = kwargs.get('instance')
         if instance and instance.interface is not None:
-            initial = kwargs.get('initial', {})
+            initial = kwargs.get('initial', {}).copy()
             initial['rack'] = instance.interface.device.rack
             initial['device'] = instance.interface.device
             kwargs['initial'] = initial
@@ -252,6 +253,11 @@ class CircuitTerminationForm(BootstrapMixin, ChainedFieldsMixin, forms.ModelForm
         super(CircuitTerminationForm, self).__init__(*args, **kwargs)
 
         # Mark connected interfaces as disabled
-        self.fields['interface'].choices = [
-            (iface.id, {'label': iface.name, 'disabled': iface.is_connected}) for iface in self.fields['interface'].queryset
-        ]
+        self.fields['interface'].choices = []
+        for iface in self.fields['interface'].queryset:
+            self.fields['interface'].choices.append(
+                (iface.id, {
+                    'label': iface.name,
+                    'disabled': iface.is_connected and iface.pk != self.initial.get('interface'),
+                })
+            )

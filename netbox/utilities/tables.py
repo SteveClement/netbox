@@ -14,23 +14,12 @@ class BaseTable(tables.Table):
 
         # Set default empty_text if none was provided
         if self.empty_text is None:
-            self.empty_text = 'No {} found.'.format(self._meta.model._meta.verbose_name_plural)
+            self.empty_text = 'No {} found'.format(self._meta.model._meta.verbose_name_plural)
 
-    class Meta:
-        attrs = {
-            'class': 'table table-hover',
-        }
-
-
-class SearchTable(tables.Table):
-    """
-    Default table for search results
-    """
     class Meta:
         attrs = {
             'class': 'table table-hover table-headings',
         }
-        orderable = False
 
 
 class ToggleColumn(tables.CheckBoxColumn):
