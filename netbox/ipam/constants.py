@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 
 # IP address families
 AF_CHOICES = (
@@ -39,6 +37,7 @@ IPADDRESS_ROLE_VIP = 40
 IPADDRESS_ROLE_VRRP = 41
 IPADDRESS_ROLE_HSRP = 42
 IPADDRESS_ROLE_GLBP = 43
+IPADDRESS_ROLE_CARP = 44
 IPADDRESS_ROLE_CHOICES = (
     (IPADDRESS_ROLE_LOOPBACK, 'Loopback'),
     (IPADDRESS_ROLE_SECONDARY, 'Secondary'),
@@ -47,6 +46,17 @@ IPADDRESS_ROLE_CHOICES = (
     (IPADDRESS_ROLE_VRRP, 'VRRP'),
     (IPADDRESS_ROLE_HSRP, 'HSRP'),
     (IPADDRESS_ROLE_GLBP, 'GLBP'),
+    (IPADDRESS_ROLE_CARP, 'CARP'),
+)
+
+IPADDRESS_ROLES_NONUNIQUE = (
+    # IPAddress roles which are exempt from unique address enforcement
+    IPADDRESS_ROLE_ANYCAST,
+    IPADDRESS_ROLE_VIP,
+    IPADDRESS_ROLE_VRRP,
+    IPADDRESS_ROLE_HSRP,
+    IPADDRESS_ROLE_GLBP,
+    IPADDRESS_ROLE_CARP,
 )
 
 # VLAN statuses
@@ -59,7 +69,7 @@ VLAN_STATUS_CHOICES = (
     (VLAN_STATUS_DEPRECATED, 'Deprecated')
 )
 
-# Bootstrap CSS classes for various statuses
+# Bootstrap CSS classes
 STATUS_CHOICE_CLASSES = {
     0: 'default',
     1: 'primary',
@@ -67,6 +77,16 @@ STATUS_CHOICE_CLASSES = {
     3: 'danger',
     4: 'warning',
     5: 'success',
+}
+ROLE_CHOICE_CLASSES = {
+    10: 'default',
+    20: 'primary',
+    30: 'warning',
+    40: 'success',
+    41: 'success',
+    42: 'success',
+    43: 'success',
+    44: 'success',
 }
 
 # IP protocols (for services)

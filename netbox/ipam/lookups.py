@@ -1,7 +1,5 @@
-from __future__ import unicode_literals
-
 from django.db.models import Lookup, Transform, IntegerField
-from django.db.models.lookups import BuiltinLookup
+from django.db.models import lookups
 
 
 class NetFieldDecoratorMixin(object):
@@ -13,28 +11,40 @@ class NetFieldDecoratorMixin(object):
         return lhs_string, lhs_params
 
 
-class EndsWith(NetFieldDecoratorMixin, BuiltinLookup):
-    lookup_name = 'endswith'
+class IExact(NetFieldDecoratorMixin, lookups.IExact):
+
+    def get_rhs_op(self, connection, rhs):
+        return '= LOWER(%s)' % rhs
 
 
-class IEndsWith(NetFieldDecoratorMixin, BuiltinLookup):
-    lookup_name = 'iendswith'
+class EndsWith(NetFieldDecoratorMixin, lookups.EndsWith):
+    pass
 
 
-class StartsWith(NetFieldDecoratorMixin, BuiltinLookup):
+class IEndsWith(NetFieldDecoratorMixin, lookups.IEndsWith):
+    pass
+
+    def get_rhs_op(self, connection, rhs):
+        return 'LIKE LOWER(%s)' % rhs
+
+
+class StartsWith(NetFieldDecoratorMixin, lookups.StartsWith):
     lookup_name = 'startswith'
 
 
-class IStartsWith(NetFieldDecoratorMixin, BuiltinLookup):
-    lookup_name = 'istartswith'
+class IStartsWith(NetFieldDecoratorMixin, lookups.IStartsWith):
+    pass
+
+    def get_rhs_op(self, connection, rhs):
+        return 'LIKE LOWER(%s)' % rhs
 
 
-class Regex(NetFieldDecoratorMixin, BuiltinLookup):
-    lookup_name = 'regex'
+class Regex(NetFieldDecoratorMixin, lookups.Regex):
+    pass
 
 
-class IRegex(NetFieldDecoratorMixin, BuiltinLookup):
-    lookup_name = 'iregex'
+class IRegex(NetFieldDecoratorMixin, lookups.IRegex):
+    pass
 
 
 class NetContainsOrEquals(Lookup):

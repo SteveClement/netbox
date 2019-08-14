@@ -1,9 +1,6 @@
-from __future__ import unicode_literals
-
 from django import forms
 
 from utilities.forms import BootstrapMixin
-
 
 OBJ_TYPE_CHOICES = (
     ('', 'All Objects'),
@@ -14,8 +11,12 @@ OBJ_TYPE_CHOICES = (
     ('DCIM', (
         ('site', 'Sites'),
         ('rack', 'Racks'),
+        ('rackgroup', 'Rack Groups'),
         ('devicetype', 'Device types'),
         ('device', 'Devices'),
+        ('virtualchassis', 'Virtual Chassis'),
+        ('cable', 'Cables'),
+        ('powerfeed', 'Power Feeds'),
     )),
     ('IPAM', (
         ('vrf', 'VRFs'),
@@ -30,12 +31,16 @@ OBJ_TYPE_CHOICES = (
     ('Tenancy', (
         ('tenant', 'Tenants'),
     )),
+    ('Virtualization', (
+        ('cluster', 'Clusters'),
+        ('virtualmachine', 'Virtual machines'),
+    )),
 )
 
 
 class SearchForm(BootstrapMixin, forms.Form):
     q = forms.CharField(
-        label='Search', widget=forms.TextInput(attrs={'style': 'width: 350px'})
+        label='Search'
     )
     obj_type = forms.ChoiceField(
         choices=OBJ_TYPE_CHOICES, required=False, label='Type'

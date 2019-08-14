@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from rest_framework import routers
 
 from . import views
@@ -15,6 +13,9 @@ class IPAMRootView(routers.APIRootView):
 
 router = routers.DefaultRouter()
 router.APIRootView = IPAMRootView
+
+# Field choices
+router.register(r'_choices', views.IPAMFieldChoicesViewSet, basename='field-choice')
 
 # VRFs
 router.register(r'vrfs', views.VRFViewSet)
